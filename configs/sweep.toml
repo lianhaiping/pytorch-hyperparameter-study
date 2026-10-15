@@ -1,0 +1,66 @@
+# Batch-size study configuration.
+# Every design choice lives here; the code contains no hidden hyperparameters.
+
+[data]
+split_seed = 17
+val_size = 3096     # 15% of 20,640 rows
+test_size = 3096    # 15%; split off and frozen, but never used in this study
+splits_file = "splits/california_housing_seed17.npz"
+
+[model]
+# Fixed architecture (not a factor): 8 -> 64 -> ReLU -> 64 -> ReLU -> 1.
+hidden_sizes = [64, 64]
+
+[training]
+seed = 17                 # reference seed for the pilot and scripts/check_determinism.py
+max_epochs = 1000         # generous cap; runs that reach it are flagged hit_cap
+patience = 30             # epochs without val-RMSE improvement before stopping
+min_delta = 0.0           # any decrease in val RMSE counts as an improvement
+divergence_factor = 10.0  # stop if val RMSE > factor x initial (untrained) val RMSE
+drop_last = false         # every training row is used every epoch (last batch may be smaller)
+num_threads = 1           # torch.set_num_threads per run; recorded in results
+
+# Explicit regularization is disabled for both optimizers (weight_decay = 0,
+# no dropout, no normalization layers, no gradient clipping, no LR schedule).
+
+[optimizers.sgd]
+momentum = 0.9
+nesterov = false
+weight_decay = 0.0
+lr_grid = [1e-4, 3e-4, 1e-3, 3e-3, 1e-2, 3e-2, 1e-1, 3e-1, 1.0]
+
+[optimizers.adam]
+# torch.optim.Adam. With weight_decay = 0, Adam and AdamW are identical.
+betas = [0.9, 0.999]
+eps = 1e-8
+weight_decay = 0.0
+lr_grid = [1e-5, 3e-5, 1e-4, 3e-4, 1e-3, 3e-3, 1e-2, 3e-2, 1e-1]
+
+[sweep]
+# Powers of 2 from 2 up to 8192 (the largest power of 2 below the 14,448 training rows).
+batch_sizes = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192]
+# Seed is a full factor: weight init + shuffle order. Every config runs with every seed.
+seeds = [17, 18, 19, 20, 21]
+
+[selection]
+# Best LR per (optimizer, batch size) = lowest best-epoch validation RMSE.
+# Runs within tie_rel_tol (relative) of the minimum are ties -> the larger LR wins.
+tie_rel_tol = 0.001
+
+[pilot]
+# Timing pilot: a few runs to measure seconds/epoch and typical stopping epochs.
+batch_sizes = [4, 32, 1024]
+lr = { sgd = 1e-2, adam = 1e-3 }
+
+[refine]
+# Optional: extra LRs at these multiples of each group's best half-decade LR (mean over
+# seeds), run for every seed. Used in supporting analyses only.
+factors = [0.5, 2.0]
+
+[capcheck]
+# Sensitivity check, reported separately: re-run every run that hit the epoch cap, for batch
+# sizes >= min_batch_size, with a higher cap. Runs that stopped by patience or divergence are
+# unaffected by the cap (training is deterministic), so this equals re-running the whole grid
+# at those batch sizes with the higher cap.
+max_epochs = 5000
+min_batch_size = 1024

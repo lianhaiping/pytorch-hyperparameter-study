@@ -1,0 +1,3 @@
+epoch,steps,samples_seen,train_time_s,train_rmse,val_rmse
+0,0,0,0.0,2.37386155128479,2.377352476119995
+1,15,30,0.02274270006455481,nan,nan

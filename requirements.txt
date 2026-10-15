@@ -1,0 +1,9 @@
+# Versions used for the published results (Python 3.13).
+# CPU-only PyTorch:  pip install torch==2.14.0 --index-url https://download.pytorch.org/whl/cpu
+# CUDA PyTorch:      see https://pytorch.org/get-started/locally/
+torch==2.14.0
+numpy==2.5.3
+scikit-learn==1.9.1
+pandas==3.0.6
+matplotlib==3.11.2
+marimo==0.24.2
